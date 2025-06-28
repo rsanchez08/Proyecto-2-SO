@@ -1,13 +1,13 @@
 /*
 fsck.bwfs - Verifica la integridad del sistema de archivos BWFS.
 
-1. Carga el archivo de imagen (simulada o .png más adelante).
-2. Verifica que el número mágico BWFS_MAGIC esté presente.
-3. Imprime el número de bloques e inodos detectados.
+Este programa se encarga de:
+1. Cargar el archivo de imagen del FS desde una carpeta.
+2. Validar que el archivo tenga la firma correcta (BWFS_MAGIC).
+3. Mostrar cuántos inodos y bloques contiene el FS.
 
-Estructura del proyecto:
-- Utiliza funciones de bwfs_io para leer el FS.
-- bwfs_superblock está definido en bwfs.h
+Forma de uso:
+    ./fsck <carpeta_con_FS>
 */
 
 #include <stdio.h>
@@ -18,26 +18,34 @@ Estructura del proyecto:
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
-        fprintf(stderr, "Uso: fsck.bwfs <ruta/carpeta>\n");
+        fprintf(stderr, "Uso: ./fsck <carpeta_con_FS>\n");
         return 1;
     }
 
+    const char *carpeta = argv[1];
     char path[512];
-    snprintf(path, sizeof(path), "%s/FS_0.png", argv[1]); // simulamos imagen de disco
+    snprintf(path, sizeof(path), "%s/FS_0.png", carpeta);  // ruta al archivo del FS
 
     bwfs_superblock sb;
+
+    // Cargar la imagen del sistema de archivos
     if (bwfs_load_image(path, &sb) != 0) {
-        fprintf(stderr, "Error: no se pudo cargar el sistema de archivos en %s\n", path);
+        fprintf(stderr, "Error: no se pudo abrir la imagen del sistema de archivos en: %s\n", path);
         return 1;
     }
 
+    // Verificar que el número mágico sea correcto
     if (sb.magic != BWFS_MAGIC) {
-        fprintf(stderr, "Error: sistema de archivos no válido (magic incorrecto)\n");
+        fprintf(stderr, "Error: la imagen no contiene un sistema de archivos válido (firma incorrecta).\n");
         return 1;
     }
 
-    printf("✓ FS válido\n");
-    printf("Archivos posibles: %d\n", sb.num_inodes);
-    printf("Bloques disponibles: %d\n", sb.num_blocks);
+    // Mostrar información del sistema de archivos
+    printf("Sistema de archivos válido.\n");
+    printf("Inodos disponibles:     %d\n", sb.num_inodes);
+    printf("Bloques disponibles:    %d\n", sb.num_blocks);
+
+    // (Opcional) Puedes agregar más validaciones en el futuro aquí
+
     return 0;
 }

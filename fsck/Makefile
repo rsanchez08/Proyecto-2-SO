@@ -1,4 +1,4 @@
-# Makefile para fsck.bwfs
+# Makefile para compilar fsck
 
 CC = gcc
 CFLAGS = -Wall -Wextra
