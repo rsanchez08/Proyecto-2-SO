@@ -1,60 +1,63 @@
-/*
-mount.bwfs - Montador del sistema de archivos BWFS usando FUSE.
-
-Este programa:
-1. Carga el archivo de imagen del FS (`FS_0.png`) desde una carpeta.
-2. Verifica que sea un sistema válido (chequea el número mágico).
-3. Usa FUSE para montar el FS en una carpeta vacía (punto de montaje).
-
-Forma de uso:
-    ./mount <carpeta_con_FS> <punto_de_montaje>
-*/
-
 #define FUSE_USE_VERSION 31
 
 #include <fuse3/fuse.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
+#include <sys/stat.h>
 #include "../bwfs/bwfs.h"
 #include "../bwfs/bwfs_io.h"
+#include "../mkfs/stb_image.h"
+#include "../mkfs/stb_image_write.h"
 
-// Variables globales accesibles desde bwfs_ops.c
-bwfs_superblock sb;
-char fs_path[512];
 
-// Prototipo de operaciones definidas en bwfs_ops.c
+// Variables globales (declaradas en bwfs.c)
+extern bwfs_superblock sb;
+extern char fs_path[512];
+extern char blocks_folder[512];
 extern struct fuse_operations bwfs_oper;
 
 int main(int argc, char *argv[]) {
     if (argc != 3) {
-        fprintf(stderr, "Uso: ./mount <carpeta_con_FS> <punto_de_montaje>\n");
+        fprintf(stderr, "Uso: mount.bwfs <carpeta_con_FS_0.png> <punto_de_montaje>\n");
         return 1;
     }
 
-    const char *carpeta_fs = argv[1];
-    const char *punto_montaje = argv[2];
+    // Verificar que la carpeta de bloques existe
+    struct stat st = {0};
+    if (stat(argv[1], &st) == -1 || !S_ISDIR(st.st_mode)) {
+        fprintf(stderr, "❌ Error: la carpeta de bloques no existe o no es un directorio: %s\n", argv[1]);
+        return 1;
+    }
 
-    snprintf(fs_path, sizeof(fs_path), "%s/FS_0.png", carpeta_fs);
+    // Obtener ruta absoluta
+    char resolved_path[PATH_MAX];
+    if (!realpath(argv[1], resolved_path)) {
+        perror("realpath");
+        return 1;
+    }
 
-    // Cargar el superbloque desde la imagen
+    // Asignar ruta global
+    strncpy(blocks_folder, resolved_path, sizeof(blocks_folder));
+    blocks_folder[sizeof(blocks_folder) - 1] = '\0';
+
+    // Construir ruta a FS_0.png
+    snprintf(fs_path, sizeof(fs_path), "%s/FS_0.png", blocks_folder);
+
+    // Cargar el superbloque binario
     if (bwfs_load_image(fs_path, &sb) != 0) {
-        fprintf(stderr, "Error: no se pudo abrir la imagen en: %s\n", fs_path);
+        fprintf(stderr, "❌ Error al abrir %s\n", fs_path);
         return 1;
     }
 
-    // Verificar que el sistema sea válido (magic)
+    // Verificar magic
     if (sb.magic != BWFS_MAGIC) {
-        fprintf(stderr, "Error: sistema de archivos inválido (firma incorrecta)\n");
+        fprintf(stderr, "❌ Error: sistema de archivos no válido (firma incorrecta)\n");
         return 1;
     }
 
-    printf("FS cargado correctamente desde: %s\n", fs_path);
-    printf("Montando en: %s\n", punto_montaje);
-
-    // Preparar argumentos para FUSE
-    char *fuse_argv[] = { argv[0], (char *)punto_montaje, "-f" };
-    int fuse_argc = 3;
-
-    return fuse_main(fuse_argc, fuse_argv, &bwfs_oper, NULL);
+    // Lanzar FUSE
+    char *fuse_argv[] = { argv[0], argv[2], "-f" };
+    return fuse_main(3, fuse_argv, &bwfs_oper, NULL);
 }

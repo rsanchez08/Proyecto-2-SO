@@ -1,14 +1,17 @@
-# Makefile para compilar mount.bwfs con soporte FUSE
+# Makefile para compilar el montador BWFS con FUSE y stb
 
 CC = gcc
-CFLAGS = -Wall -Wextra
-FUSE_FLAGS = `pkg-config fuse3 --cflags --libs`
-INCLUDES = -I../bwfs
+CFLAGS = -Wall -Wextra -I../bwfs -I../mkfs
+SRC = mount.c bwfs.c ../bwfs/bwfs_io.c
+OUT = mount
 
-all: mount
+# `pkg-config fuse3 --cflags --libs` busca las rutas y librerías de FUSE
+# `-lm` es para funciones matemáticas usadas por stb_image
 
-mount: mount.c bwfs.c
-	$(CC) $(CFLAGS) mount.c bwfs.c ../bwfs/bwfs_io.c -o mount $(INCLUDES) $(FUSE_FLAGS)
+all: $(OUT)
+
+$(OUT): $(SRC)
+	$(CC) $(CFLAGS) $(SRC) -o $(OUT) `pkg-config fuse3 --cflags --libs` -lm
 
 clean:
-	rm -f mount
+	rm -f $(OUT)

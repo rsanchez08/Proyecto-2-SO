@@ -10,12 +10,17 @@
 #define BWFS_MAX_FILES 128            // Número máximo de archivos (inodos)
 #define BWFS_FILENAME_MAX 255         // Longitud máxima de nombre de archivo
 
+// Parámetros de imagen
+#define BLOCK_WIDTH 1000
+#define BLOCK_HEIGHT 1000
+#define BLOCK_PIXELS (BLOCK_WIDTH * BLOCK_HEIGHT)
+
 // Estructura para representar un archivo (inode)
 typedef struct {
     int used;                         // 1 si está usado, 0 si está libre
     char filename[BWFS_FILENAME_MAX]; // Nombre del archivo
     int size;                         // Tamaño del archivo en bytes
-    int blocks[10];                   // Reservado para uso futuro (fragmentación)
+    int blocks[1];                   // Bloques reservados por archivo (puede producir fragmentación)
     mode_t mode;                      // Permisos POSIX (lectura, escritura, etc.)
     time_t atime, mtime, ctime;       // Tiempos de acceso, modificación y creación
 } bwfs_inode;
