@@ -1,7 +1,5 @@
 #define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image.h"
-#include "stb_image_write.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,7 +64,6 @@ int main(int argc, char *argv[]) {
 
     // Inicializar metadatos
     sb->magic = BWFS_MAGIC;
-    sb->version = BWFS_VERSION;
     sb->block_size = BWFS_BLOCK_SIZE;
     sb->total_blocks = total_blocks;
     sb->free_blocks = total_blocks - 1; // Reservar bloque 0
@@ -82,34 +79,31 @@ int main(int argc, char *argv[]) {
 
     // Guardar metadatos (superbloque + bitmap)
     char meta_path[512];
-    snprintf(meta_path, sizeof(meta_path), "%s/meta.bwfs", carpeta);
-    if (bwfs_save_image(meta_path, sb) != 0) {
+    snprintf(meta_path, sizeof(meta_path), "%s/meta_0000.png", carpeta);
+    if (bwfs_save_image(meta_path, sb, sb_size) != 0) {
         fprintf(stderr, "Error al guardar metadatos\n");
         free(sb);
         return 1;
     }
 
-    // Crear archivo para inodos
+    // Crear imagen para inodos
     char inodes_path[512];
-    snprintf(inodes_path, sizeof(inodes_path), "%s/inodes.bwfs", carpeta);
-    FILE *inodes_file = fopen(inodes_path, "wb");
-    if (!inodes_file) {
-        fprintf(stderr, "Error al crear tabla de inodos\n");
+    snprintf(inodes_path, sizeof(inodes_path), "%s/inodes_0000.png", carpeta);
+    size_t inode_table_size = sizeof(bwfs_inode) * BWFS_MAX_FILES;
+    void *inode_table = calloc(1, inode_table_size);
+    if (!inode_table) {
+        fprintf(stderr, "Error al asignar memoria para inodos\n");
         free(sb);
         return 1;
     }
-    
-    // Inicializar tabla de inodos vacía
-    bwfs_inode inode_zero = {0};
-    for (uint32_t i = 0; i < BWFS_MAX_FILES; i++) {
-        if (fwrite(&inode_zero, sizeof(bwfs_inode), 1, inodes_file) != 1) {
-            fprintf(stderr, "Error al escribir inodos\n");
-            fclose(inodes_file);
-            free(sb);
-            return 1;
-        }
+    if (bwfs_save_image(inodes_path, inode_table, inode_table_size) != 0) {
+        fprintf(stderr, "Error al guardar inodos como imagen\n");
+        free(inode_table);
+        free(sb);
+        return 1;
     }
-    fclose(inodes_file);
+    free(inode_table);
+
 
     // Crear imágenes de datos
     for (uint32_t i = 0; i < images_needed; i++) {
@@ -125,8 +119,8 @@ int main(int argc, char *argv[]) {
     printf("Sistema de archivos BWFS creado exitosamente en: %s\n", carpeta);
     printf("- Tamaño configurado: %d MB (%d bloques de 4KB)\n", size_mb, total_blocks);
     printf("- Imágenes de datos creadas: %d\n", images_needed);
-    printf("- Archivo de metadatos: meta.bwfs\n");
-    printf("- Tabla de inodos: inodes.bwfs\n");
+    printf("- Archivo de metadatos: meta_0000.png\n");
+    printf("- Tabla de inodos: inodes_0000.png\n");
     
     free(sb);
     return 0;
