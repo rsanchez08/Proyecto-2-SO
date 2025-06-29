@@ -3,35 +3,56 @@
 
 #include <time.h>
 #include <sys/types.h>
+#include <stdint.h>
 
-#define BWFS_MAGIC 0xBEEFBEEF         // Firma mágica del sistema de archivos
-#define BWFS_BLOCK_SIZE 4096          // Tamaño simulado de bloque (en bytes)
-#define BWFS_MAX_BLOCKS 1024          // Número máximo de bloques disponibles
-#define BWFS_MAX_FILES 128            // Número máximo de archivos (inodos)
-#define BWFS_FILENAME_MAX 255         // Longitud máxima de nombre de archivo
+// Identificación del sistema de archivos
+#define BWFS_MAGIC 0x42574653 // "BWFS" en ASCII hex
+#define BWFS_VERSION 1
 
-// Parámetros de imagen
+// Límites del sistema
+#define BWFS_MAX_FILES 128            // Número máximo de archivos
+#define BWFS_FILENAME_MAX 255         // Longitud máxima de nombre
+#define BWFS_MAX_BLOCKS (1024 * 1024) // 1M bloques (4TB máximo)
+
+// Configuración de bloques
+#define BWFS_BLOCK_SIZE 4096          // 4KB por bloque
+#define BWFS_BLOCKS_PER_INODE 16      // Máx 64KB por archivo
+
+// Configuración de imágenes (1 bit por píxel)
 #define BLOCK_WIDTH 1000
 #define BLOCK_HEIGHT 1000
+#define PIXELS_PER_BYTE 8             // 1 byte = 8 píxeles
 #define BLOCK_PIXELS (BLOCK_WIDTH * BLOCK_HEIGHT)
+#define BYTES_PER_IMAGE (BLOCK_PIXELS / PIXELS_PER_BYTE) // 125KB
+#define BLOCKS_PER_IMAGE (BYTES_PER_IMAGE / BWFS_BLOCK_SIZE) // 30 bloques
 
-// Estructura para representar un archivo (inode)
+// Estructura de inodo
 typedef struct {
-    int used;                         // 1 si está usado, 0 si está libre
-    char filename[BWFS_FILENAME_MAX]; // Nombre del archivo
-    int size;                         // Tamaño del archivo en bytes
-    int blocks[1];                   // Bloques reservados por archivo (puede producir fragmentación)
-    mode_t mode;                      // Permisos POSIX (lectura, escritura, etc.)
-    time_t atime, mtime, ctime;       // Tiempos de acceso, modificación y creación
+    uint8_t used;                    // 1=usado, 0=libre
+    char filename[BWFS_FILENAME_MAX]; 
+    uint32_t size;                   // Tamaño real en bytes
+    uint32_t block_count;            // Bloques usados
+    uint32_t blocks[BWFS_BLOCKS_PER_INODE]; // Bloques asignados
+    mode_t mode;                     // Permisos
+    uid_t uid;                       // Usuario
+    gid_t gid;                       // Grupo
+    time_t atime;                    // Último acceso
+    time_t mtime;                    // Última modificación
+    time_t ctime;                    // Creación
 } bwfs_inode;
 
-// Superbloque que contiene toda la metadata del FS
+// Superbloque (parte fija)
 typedef struct {
-    int magic;                                      // Firma mágica del FS
-    int num_inodes;                                // Número de inodos disponibles
-    int num_blocks;                                // Número de bloques disponibles
-    unsigned char block_bitmap[BWFS_MAX_BLOCKS];   // Mapa de bloques usados/libres
-    bwfs_inode inodes[BWFS_MAX_FILES];             // Tabla de inodos (archivos)
+    uint32_t magic;
+    uint32_t version;
+    uint32_t block_size;
+    uint32_t total_blocks;
+    uint32_t free_blocks;
+    uint32_t total_inodes;
+    uint32_t free_inodes;
+    uint32_t blocks_per_image;
+    uint32_t first_data_block;
+    uint8_t bitmap[];
 } bwfs_superblock;
 
 #endif
