@@ -1,13 +1,15 @@
-# Makefile para compilar fsck
+# Makefile para compilar fsck.bwfs que verifica la consistencia del sistema BWFS
 
 CC = gcc
-CFLAGS = -Wall -Wextra
-INCLUDES = -I../bwfs
+CFLAGS = -Wall -Wextra -I../bwfs -I../mkfs
+SRC = fsck.c ../bwfs/bwfs_io.c
+OUT = fsck.bwfs
 
-all: fsck
+# stbi_write necesita -lm
+all: $(OUT)
 
-fsck: fsck.c
-	$(CC) $(CFLAGS) fsck.c ../bwfs/bwfs_io.c -o fsck $(INCLUDES)
+$(OUT): $(SRC)
+	$(CC) $(CFLAGS) $(SRC) -o $(OUT) -lm
 
 clean:
-	rm -f fsck
+	rm -f $(OUT)
