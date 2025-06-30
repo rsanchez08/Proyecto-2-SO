@@ -14,14 +14,14 @@ make
 ### 📁 Compilar `fsck`
 
 ```bash
-cd ../fsck
+cd fsck
 make
 ```
 
 ### 📁 Compilar `mount`
 
 ```bash
-cd ../mount
+cd mount
 make
 ```
 
@@ -32,7 +32,7 @@ make
 Desde la carpeta `mkfs`:
 
 ```bash
-./mkfs output/
+./mkfs.bwfs output/
 ```
 
 ✔️ Esto crea el archivo `output/FS_0.png` que simula el disco del FS.
@@ -57,7 +57,7 @@ Desde la carpeta `mount`:
 
 ```bash
 mkdir -p ../mnt       # crea carpeta vacía como punto de montaje
-./mount ../mkfs/output ../mnt
+./mount.bfws ../mkfs/output ../mnt
 ```
 
 ✔️ Esto **monta  FS** en la carpeta `mnt/`.
@@ -69,8 +69,7 @@ mkdir -p ../mnt       # crea carpeta vacía como punto de montaje
 Desde otra terminal o en la misma:
 
 ```bash
-cd ../mnt
-touch hola.txt
+cd mnt
 echo "Hola mundo" > hola.txt
 cat hola.txt
 ls -l
@@ -84,9 +83,9 @@ Todo esto se maneja por funciones `create`, `write`, `read`, `unlink`, etc.
 ## ✅ 6. Desmontar el FS
 
 Cuando termines de probar:
-
+Asegurarse que el FS no tenga tareas corriendo. 
 ```bash
-fusermount3 -u ../mnt
+fusermount3 -u /mnt
 ```
 
 ✅ Esto libera el punto de montaje.
