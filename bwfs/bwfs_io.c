@@ -1,8 +1,6 @@
-// Define para incluir la implementación de escritura de imágenes PNG
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "../mkfs/stb_image_write.h"
 
-// Define para incluir la implementación de lectura de imágenes PNG
 #define STB_IMAGE_IMPLEMENTATION
 #include "../mkfs/stb_image.h"
 
