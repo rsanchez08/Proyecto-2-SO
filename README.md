@@ -85,7 +85,14 @@ Todo esto se maneja por funciones `create`, `write`, `read`, `unlink`, etc.
 Cuando termines de probar:
 Asegurarse que el FS no tenga tareas corriendo. 
 ```bash
-fusermount3 -u /mnt
+lsof +D mnt/
+```
+```bash
+kill -9 <PID>
+```
+Correr desde carpeta root.
+```bash
+fusermount3 -u mnt/
 ```
 
 ✅ Esto libera el punto de montaje.
