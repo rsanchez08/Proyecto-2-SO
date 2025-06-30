@@ -1,4 +1,4 @@
-#define FUSE_USE_VERSION 31 /
+#define FUSE_USE_VERSION 31 
 
 
 #include "../mkfs/stb_image_write.h"
