@@ -18,12 +18,12 @@
 #define BWFS_BLOCKS_PER_INODE 16      // Máx 64KB por archivo
 
 // Configuración de imágenes (1 bit por píxel)
-#define BLOCK_WIDTH 1000              // Imágenes de 1000 de ancho
-#define BLOCK_HEIGHT 1000             // Imágenes de 1000 de alto
+#define BLOCK_WIDTH 256              // 256 x 128 (cada imagen registra 4KB) 
+#define BLOCK_HEIGHT 128             
 #define PIXELS_PER_BYTE 8             // 1 byte = 8 píxeles
-#define BLOCK_PIXELS (BLOCK_WIDTH * BLOCK_HEIGHT) // Imágenes de 1000x1000
-#define BYTES_PER_IMAGE (BLOCK_PIXELS / PIXELS_PER_BYTE) // 125KB
-#define BLOCKS_PER_IMAGE (BYTES_PER_IMAGE / BWFS_BLOCK_SIZE) // 30 bloques
+#define BLOCK_PIXELS (BLOCK_WIDTH * BLOCK_HEIGHT) // 32768 pixeles
+#define BYTES_PER_IMAGE (BLOCK_PIXELS / PIXELS_PER_BYTE) // 4096 bytes
+#define BLOCKS_PER_IMAGE (BYTES_PER_IMAGE / BWFS_BLOCK_SIZE) // 1 imagen = 1 bloque
 
 // Estructura de inodo
 typedef struct {
@@ -40,7 +40,7 @@ typedef struct {
     time_t ctime;                    // Creación
 } bwfs_inode;
 
-// Superbloque (parte fija)
+// Superbloque 
 typedef struct {
     uint32_t magic;             // Número mágico para diferenciar el FS
     uint32_t block_size;        // Tamaño de bloques en bytes
@@ -50,6 +50,8 @@ typedef struct {
     uint32_t free_inodes;       // Inodos libres
     uint32_t blocks_per_image;  // Bloques por imagen
     uint32_t first_data_block;  // A partir de qué número de bloque terminan los metadatos
+    uint32_t metadata_block_count; // Bloques usados por metadatos
+    u_int32_t first_node_block; // Bloque donde empiezan los inodos
     uint8_t bitmap[];           // Mapa de bits
 } bwfs_superblock;
 

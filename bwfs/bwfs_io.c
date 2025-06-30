@@ -8,11 +8,15 @@
 #include <stddef.h>
 
 int bwfs_save_image(const char *path, const void *data, size_t size) {
-    if (!path || !data || size == 0) return -1;
+    
+    if (!path || !data || size == 0 || size > BYTES_PER_IMAGE) {
+        fprintf(stderr, "Error: Tamaño debe ser entre 1 y %d bytes\n", BYTES_PER_IMAGE);
+        return -1;
+    }
 
     size_t pixel_count = size * 8;
     size_t width = BLOCK_WIDTH;
-    size_t height = (pixel_count + width - 1) / width;
+    size_t height = BLOCK_HEIGHT;
 
     uint8_t *pixels = calloc(width * height, 1);
     if (!pixels) return -1;
@@ -34,10 +38,17 @@ int bwfs_save_image(const char *path, const void *data, size_t size) {
 
 int bwfs_load_image(const char *path, void **data_ptr, size_t *size_ptr) {
     if (!path || !data_ptr || !size_ptr) return -1;
-
+    
     int width, height, channels;
     uint8_t *pixels = stbi_load(path, &width, &height, &channels, 1);
     if (!pixels) return -1;
+
+    if (width != BLOCK_WIDTH || height != BLOCK_HEIGHT) {
+        fprintf(stderr, "Error: Dimensiones de imagen incorrectas (%dx%d), deben ser %dx%d\n",
+                width, height, BLOCK_WIDTH, BLOCK_HEIGHT);
+        stbi_image_free(pixels);
+        return -1;
+    }
 
     size_t pixel_count = width * height;
     size_t size = (pixel_count + 7) / 8;
