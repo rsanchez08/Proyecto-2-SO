@@ -1,10 +1,10 @@
-#define FUSE_USE_VERSION 31
+#define FUSE_USE_VERSION 31 /
 
-// Inclusión de bibliotecas STB para manejo de imágenes PNG
+
 #include "../mkfs/stb_image_write.h"
 #include "../mkfs/stb_image.h"
 
-// Bibliotecas estándar de FUSE y del sistema
+
 #include <fuse3/fuse.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,12 +17,12 @@
 #include "../bwfs/bwfs.h"
 #include "../bwfs/bwfs_io.h"
 
-// Variables globales del sistema de archivos
+// Variables globales para el estado del sistema de archivos
 bwfs_superblock *sb;
 bwfs_inode inodes[BWFS_MAX_FILES];
 char blocks_folder[512];
 
-// Función para guardar el estado completo del sistema de archivos
+// Guarda el estado completo del sistema de archivos en imágenes *_meta.png
 void bwfs_guardar_estado() {
     size_t bitmap_size = (sb->total_blocks + 7) / 8;
     size_t sb_size = sizeof(bwfs_superblock) + bitmap_size;
@@ -43,7 +43,7 @@ void bwfs_guardar_estado() {
     free(metadata_buffer);
 }
 
-// Carga el contenido de un bloque desde su archivo PNG
+// Carga un bloque de datos desde una imagen PNG al buffer indicado
 int load_block_png(int block, char *buf, size_t size, off_t offset) {
     char path[512];
     snprintf(path, sizeof(path), "%s/%06d_data.png", blocks_folder, block);
@@ -63,18 +63,19 @@ int load_block_png(int block, char *buf, size_t size, off_t offset) {
     return to_read;
 }
 
-// Guarda los datos de un bloque en un archivo PNG
+// Guarda un bloque de datos como imagen PNG
 int save_block_png(int block, const char *buf, size_t size) {
     char path[512];
     snprintf(path, sizeof(path), "%s/%06d_data.png", blocks_folder, block);
     return bwfs_save_image(path, buf, size);
 }
 
-// ---------------------- FUNCIONES FUSE ----------------------
+// ------------------------- FUSE OPERATIONS -------------------------
 
-// Obtener atributos de archivo o directorio
+// Maneja atributos de archivos o directorios
 static int bwfs_getattr(const char *path, struct stat *st, struct fuse_file_info *fi) {
     (void) fi;
+    printf("FUNCIÓN FUSE GETATTR\n");
     memset(st, 0, sizeof(struct stat));
     if (strcmp(path, "/") == 0) {
         st->st_mode = S_IFDIR | 0755;
@@ -95,10 +96,11 @@ static int bwfs_getattr(const char *path, struct stat *st, struct fuse_file_info
     return -ENOENT;
 }
 
-// Leer contenido del directorio
+// Lista archivos del directorio
 static int bwfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
                         off_t offset, struct fuse_file_info *fi, enum fuse_readdir_flags flags) {
     (void) offset; (void) fi; (void) flags;
+    printf("FUNCIÓN FUSE READDIR\n");
     if (strcmp(path, "/") != 0) return -ENOENT;
     filler(buf, ".", NULL, 0, 0);
     filler(buf, "..", NULL, 0, 0);
@@ -108,25 +110,32 @@ static int bwfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     return 0;
 }
 
-// Crear un archivo
+// Crea un nuevo archivo
 static int bwfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
+    printf("FUNCIÓN FUSE CREATE\n");
+
     for (int i = 0; i < BWFS_MAX_FILES; i++) {
         if (!inodes[i].used) {
             int block = -1;
             for (int b = sb->first_data_block; b < sb->total_blocks; b++) {
                 if (!(sb->bitmap[b / 8] & (1 << (b % 8)))) {
                     sb->bitmap[b / 8] |= (1 << (b % 8));
+                    sb->free_blocks--;
                     block = b;
                     break;
                 }
             }
             if (block == -1) return -ENOSPC;
+
             inodes[i].used = 1;
             strncpy(inodes[i].filename, path + 1, BWFS_FILENAME_MAX);
             inodes[i].mode = S_IFREG | mode;
             inodes[i].size = 0;
+            inodes[i].block_count = 1;
             inodes[i].blocks[0] = block;
             inodes[i].ctime = inodes[i].mtime = inodes[i].atime = time(NULL);
+            sb->free_inodes--;
+
             bwfs_guardar_estado();
             return 0;
         }
@@ -134,24 +143,28 @@ static int bwfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     return -ENOSPC;
 }
 
-// Abrir un archivo
+// Abre un archivo
 static int bwfs_open(const char *path, struct fuse_file_info *fi) {
+    printf("FUNCIÓN FUSE OPEN\n");
     for (int i = 0; i < BWFS_MAX_FILES; i++)
         if (inodes[i].used && strcmp(inodes[i].filename, path + 1) == 0)
             return 0;
     return -ENOENT;
 }
 
-// Leer datos de un archivo
+// Lee contenido desde un archivo
 static int bwfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
+    printf("FUNCIÓN FUSE READ\n");
     for (int i = 0; i < BWFS_MAX_FILES; i++)
         if (inodes[i].used && strcmp(inodes[i].filename, path + 1) == 0)
             return load_block_png(inodes[i].blocks[0], buf, size, offset);
     return -ENOENT;
 }
 
-// Escribir datos a un archivo
+// Escribe contenido en un archivo
 static int bwfs_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
+    printf("FUNCIÓN FUSE WRITE\n");
+    
     for (int i = 0; i < BWFS_MAX_FILES; i++)
         if (inodes[i].used && strcmp(inodes[i].filename, path + 1) == 0) {
             inodes[i].size = offset + size;
@@ -164,12 +177,15 @@ static int bwfs_write(const char *path, const char *buf, size_t size, off_t offs
     return -ENOENT;
 }
 
-// Eliminar un archivo
+// Elimina un archivo
 static int bwfs_unlink(const char *path) {
+    printf("FUNCIÓN FUSE UNLINK\n");
+
     for (int i = 0; i < BWFS_MAX_FILES; i++) {
         if (inodes[i].used && strcmp(inodes[i].filename, path + 1) == 0) {
             int block = inodes[i].blocks[0];
             sb->bitmap[block / 8] &= ~(1 << (block % 8));
+            sb->free_blocks++;
 
             char ruta[512];
             snprintf(ruta, sizeof(ruta), "%s/%06d_data.png", blocks_folder, block);
@@ -177,16 +193,23 @@ static int bwfs_unlink(const char *path) {
             stbi_write_png(ruta, BLOCK_WIDTH, BLOCK_HEIGHT, 1, negro, BLOCK_WIDTH);
 
             memset(&inodes[i], 0, sizeof(bwfs_inode));
+            sb->free_inodes++;
+
             bwfs_guardar_estado();
             return 0;
         }
     }
+
+    printf("Archivo '%s' no encontrado para unlink\n", path);
+    fflush(stdout);
     return -ENOENT;
 }
 
-// Renombrar archivo
+// Renombra un archivo
 static int bwfs_rename(const char *from, const char *to, unsigned int flags) {
     (void) flags;
+    printf("FUNCIÓN FUSE RENAME\n");
+
     for (int i = 0; i < BWFS_MAX_FILES; i++) {
         if (inodes[i].used && strcmp(inodes[i].filename, from + 1) == 0) {
             strncpy(inodes[i].filename, to + 1, BWFS_FILENAME_MAX);
@@ -197,16 +220,20 @@ static int bwfs_rename(const char *from, const char *to, unsigned int flags) {
     return -ENOENT;
 }
 
-// Flush de archivo (guardar estado)
+// Sincroniza el sistema de archivos
 static int bwfs_flush(const char *path, struct fuse_file_info *fi) {
     (void) path; (void) fi;
+    printf("FUNCIÓN FUSE FLUSH\n");
+
     bwfs_guardar_estado();
     return 0;
 }
 
-// Sincronizar archivo
+// Fuerza la sincronización en disco
 static int bwfs_fsync(const char *path, int datasync, struct fuse_file_info *fi) {
     (void) datasync;
+    printf("FUNCIÓN FUSE FSYNC\n");
+
     for (int i = 0; i < BWFS_MAX_FILES; i++) {
         if (inodes[i].used && strcmp(inodes[i].filename, path + 1) == 0) {
             inodes[i].mtime = time(NULL);
@@ -217,9 +244,11 @@ static int bwfs_fsync(const char *path, int datasync, struct fuse_file_info *fi)
     return -ENOENT;
 }
 
-// Información del sistema de archivos
+// Retorna información sobre el sistema de archivos
 static int bwfs_statfs(const char *path, struct statvfs *stbuf) {
     (void) path;
+    printf("FUNCIÓN FUSE STATFS\n");
+
     memset(stbuf, 0, sizeof(struct statvfs));
     stbuf->f_bsize = BWFS_BLOCK_SIZE;
     stbuf->f_blocks = sb->total_blocks;
@@ -239,9 +268,11 @@ static int bwfs_statfs(const char *path, struct statvfs *stbuf) {
     return 0;
 }
 
-// Verificar acceso
+// Verifica acceso a un archivo
 static int bwfs_access(const char *path, int mask) {
     (void) mask;
+    printf("FUNCIÓN FUSE ACCESS\n");
+
     if (strcmp(path, "/") == 0) return 0;
     for (int i = 0; i < BWFS_MAX_FILES; i++)
         if (inodes[i].used && strcmp(inodes[i].filename, path + 1) == 0)
@@ -249,9 +280,11 @@ static int bwfs_access(const char *path, int mask) {
     return -ENOENT;
 }
 
-// Cambiar desplazamiento de lectura/escritura
+// Apoya el manejo de desplazamientos dentro de archivos
 static off_t bwfs_lseek(const char *path, off_t off, int whence, struct fuse_file_info *fi) {
     (void) path;
+    printf("FUNCIÓN FUSE LSEEK\n");
+
     for (int i = 0; i < BWFS_MAX_FILES; i++) {
         if (inodes[i].used && strcmp(inodes[i].filename, path + 1) == 0) {
             off_t size = inodes[i].size;
@@ -270,8 +303,10 @@ static off_t bwfs_lseek(const char *path, off_t off, int whence, struct fuse_fil
     return -ENOENT;
 }
 
-// Crear directorio
+// Crea un directorio
 static int bwfs_mkdir(const char *path, mode_t mode) {
+    printf("FUNCIÓN FUSE MKDIR\n");
+
     for (int i = 0; i < BWFS_MAX_FILES; ++i) {
         if (!inodes[i].used) {
             strncpy(inodes[i].filename, path + 1, BWFS_FILENAME_MAX);
@@ -286,7 +321,7 @@ static int bwfs_mkdir(const char *path, mode_t mode) {
     return -ENOSPC;
 }
 
-// Tabla de operaciones de FUSE
+// Estructura de operaciones FUSE que conecta las funciones definidas arriba
 struct fuse_operations bwfs_oper = {
     .getattr = bwfs_getattr,
     .readdir = bwfs_readdir,
