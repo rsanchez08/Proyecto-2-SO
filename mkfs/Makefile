@@ -1,14 +1,15 @@
-# Makefile para compilar mkfs con soporte para PNG usando stb_image_write
-
 CC = gcc
-CFLAGS = -Wall -Wextra -I../bwfs
+CFLAGS = -Wall -Wextra -I../bwfs -I../mkfs -g -std=c11
+LDLIBS = -lm
 
 SRC = mkfs.c ../bwfs/bwfs_io.c
 
-all: mkfs
+all: mkfs.bwfs
 
-mkfs: $(SRC)
-	$(CC) $(CFLAGS) $(SRC) -o mkfs
+mkfs.bwfs: $(SRC)
+	$(CC) $(CFLAGS) $(SRC) -o $@ $(LDLIBS)
 
 clean:
-	rm -f mkfs
+	rm -f mkfs.bwfs
+
+.PHONY: all clean
