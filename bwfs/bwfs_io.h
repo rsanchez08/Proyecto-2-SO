@@ -3,10 +3,10 @@
 
 #include "bwfs.h"
 
-// Guarda el superbloque binario (FS_0.png)
-int bwfs_save_image(const char *path, const bwfs_superblock *sb);
+// Guarda el superbloque y la tabla de inodos en una imagen respectivamente
+int bwfs_save_image(const char *path, const void *data, size_t size);
 
-// Carga el superbloque binario (FS_0.png)
-int bwfs_load_image(const char *path, bwfs_superblock **sb_ptr);
+// Carga el superbloque y la tabla de inodos en una imagen respectivamente
+int bwfs_load_image(const char *path, void **data_ptr, size_t *size_ptr);
 
 #endif // BWFS_IO_H

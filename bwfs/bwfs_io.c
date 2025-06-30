@@ -1,86 +1,62 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "../mkfs/stb_image_write.h"
+#include "bwfs.h"
 #include "bwfs_io.h"
 #include <stdint.h>
-#include <stddef.h> // Para offsetof()
+#include <stdlib.h>
+#include <string.h>
+#include <stddef.h>
 
-/*
- * Guarda el superbloque y su bitmap en un archivo.
- * Retorna 0 si tiene éxito, -1 si hay error.
- */
-int bwfs_save_image(const char *path, const bwfs_superblock *sb) {
-    if (!path || !sb || sb->magic != BWFS_MAGIC) {
+int bwfs_save_image(const char *path, const void *data, size_t size) {
+    if (!path || !data || size == 0) return -1;
+
+    size_t pixel_count = size * 8;
+    size_t width = BLOCK_WIDTH;
+    size_t height = (pixel_count + width - 1) / width;
+
+    uint8_t *pixels = calloc(width * height, 1);
+    if (!pixels) return -1;
+
+    const uint8_t *src = (const uint8_t *)data;
+    for (size_t i = 0; i < size; i++) {
+        for (int b = 0; b < 8; b++) {
+            size_t pixel_index = i * 8 + b;
+            if (pixel_index < width * height && (src[i] & (1 << (7 - b)))) {
+                pixels[pixel_index] = 255;
+            }
+        }
+    }
+
+    int result = stbi_write_png(path, width, height, 1, pixels, width);
+    free(pixels);
+    return result ? 0 : -1;
+}
+
+int bwfs_load_image(const char *path, void **data_ptr, size_t *size_ptr) {
+    if (!path || !data_ptr || !size_ptr) return -1;
+
+    int width, height, channels;
+    uint8_t *pixels = stbi_load(path, &width, &height, &channels, 1);
+    if (!pixels) return -1;
+
+    size_t pixel_count = width * height;
+    size_t size = (pixel_count + 7) / 8;
+
+    uint8_t *buffer = calloc(1, size);
+    if (!buffer) {
+        stbi_image_free(pixels);
         return -1;
     }
 
-    FILE *fp = fopen(path, "wb");
-    if (!fp) return -1;
-
-    // 1. Escribir parte fija del superbloque
-    size_t fixed_size = offsetof(bwfs_superblock, bitmap);
-    if (fwrite(sb, 1, fixed_size, fp) != fixed_size) {
-        fclose(fp);
-        return -1;
+    for (size_t i = 0; i < pixel_count; i++) {
+        if (pixels[i] > 128) {
+            buffer[i / 8] |= (1 << (7 - (i % 8)));
+        }
     }
 
-    // 2. Escribir bitmap (ubicado justo después del superbloque en memoria)
-    size_t bitmap_size = (sb->total_blocks + 7) / 8;
-    const uint8_t* bitmap = (const uint8_t*)(sb + 1);
-    
-    if (fwrite(bitmap, 1, bitmap_size, fp) != bitmap_size) {
-        fclose(fp);
-        return -1;
-    }
-
-    fclose(fp);
+    stbi_image_free(pixels);
+    *data_ptr = buffer;
+    *size_ptr = size;
     return 0;
 }
 
-/*
- * Carga el superbloque y bitmap desde un archivo.
- * Retorna 0 si tiene éxito, -1 si hay error.
- * Nota: El caller debe liberar la memoria con free().
- */
-int bwfs_load_image(const char *path, bwfs_superblock **sb_ptr) {
-    if (!path || !sb_ptr) return -1;
-
-    FILE *fp = fopen(path, "rb");
-    if (!fp) return -1;
-
-    // 1. Leer parte fija para obtener total_blocks
-    bwfs_superblock sb_temp;
-    if (fread(&sb_temp, 1, offsetof(bwfs_superblock, bitmap), fp) != offsetof(bwfs_superblock, bitmap)) {
-        fclose(fp);
-        return -1;
-    }
-
-    // Validar magic number
-    if (sb_temp.magic != BWFS_MAGIC) {
-        fclose(fp);
-        return -1;
-    }
-
-    // 2. Asignar memoria completa (superbloque + bitmap)
-    size_t bitmap_size = (sb_temp.total_blocks + 7) / 8;
-    size_t total_size = offsetof(bwfs_superblock, bitmap) + bitmap_size;
-    bwfs_superblock *sb = malloc(total_size);
-    if (!sb) {
-        fclose(fp);
-        return -1;
-    }
-
-    // 3. Copiar parte fija ya leída
-    memcpy(sb, &sb_temp, offsetof(bwfs_superblock, bitmap));
-
-    // 4. Leer bitmap
-    if (fread((uint8_t*)sb + offsetof(bwfs_superblock, bitmap), 1, bitmap_size, fp) != bitmap_size) {
-        free(sb);
-        fclose(fp);
-        return -1;
-    }
-
-    fclose(fp);
-    *sb_ptr = sb;
-    return 0;
-}
