@@ -27,29 +27,29 @@ int cargar_metadata(const char *carpeta) {
     void *first_block = NULL;
     size_t block_size = 0;
     if (bwfs_load_image(path, &first_block, &block_size) != 0) {
-        fprintf(stderr, "❌ No se pudo leer %s\n", path);
+        fprintf(stderr, "No se pudo leer %s\n", path);
         return -1;
     }
 
-    // 2. Copiar temporalmente el superbloque
+    // Copiar temporalmente el superbloque
     bwfs_superblock temp_sb;
     memcpy(&temp_sb, first_block, sizeof(bwfs_superblock));
 
-    // 3. Calcular tamaños reales
+    // Calcular tamaños reales
     size_t real_bitmap_size = (temp_sb.total_blocks + 7) / 8;
     size_t real_sb_size = sizeof(bwfs_superblock) + real_bitmap_size;
     size_t inode_table_size = sizeof(bwfs_inode) * temp_sb.total_inodes;
     size_t total_metadata_size = real_sb_size + inode_table_size;
     uint32_t metadata_blocks = (total_metadata_size + BWFS_BLOCK_SIZE - 1) / BWFS_BLOCK_SIZE;
 
-    // 4. Leer todos los bloques meta necesarios
+    // Leer todos los bloques meta necesarios
     uint8_t *metadata = malloc(metadata_blocks * BWFS_BLOCK_SIZE);
     for (uint32_t i = 0; i < metadata_blocks; i++) {
         snprintf(path, sizeof(path), "%s/%06d_meta.png", carpeta, i);
         void *block = NULL;
         size_t size = 0;
         if (bwfs_load_image(path, &block, &size) != 0) {
-            fprintf(stderr, "❌ Faltó %s\n", path);
+            fprintf(stderr, "Faltó %s\n", path);
             free(metadata);
             return -1;
         }
@@ -57,7 +57,7 @@ int cargar_metadata(const char *carpeta) {
         free(block);
     }
 
-    // 5. Asignar superbloque e inodos desde el buffer cargado
+    // Asignar superbloque e inodos desde el buffer cargado
     sb = (bwfs_superblock *)malloc(real_sb_size);
     memcpy(sb, metadata, real_sb_size);
     memcpy(inodes, metadata + real_sb_size, inode_table_size);
@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
     // Verificar que la carpeta sea válida
     struct stat st;
     if (stat(argv[1], &st) != 0 || !S_ISDIR(st.st_mode)) {
-        fprintf(stderr, "❌ Carpeta inválida: %s\n", argv[1]);
+        fprintf(stderr, "Carpeta inválida: %s\n", argv[1]);
         return 1;
     }
 
