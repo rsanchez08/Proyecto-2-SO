@@ -44,7 +44,7 @@ Desde la carpeta `mkfs`:
 Desde la carpeta `fsck`:
 
 ```bash
-./fsck ../mkfs/output/
+./fsck.bwfs ../mkfs/output/
 ```
 
 ✔️ Esto te dirá si el sistema de archivos está válido o dañado.
@@ -57,7 +57,7 @@ Desde la carpeta `mount`:
 
 ```bash
 mkdir -p ../mnt       # crea carpeta vacía como punto de montaje
-./mount.bfws ../mkfs/output ../mnt
+./mount.bwfs ../mkfs/output ../mnt
 ```
 
 ✔️ Esto **monta  FS** en la carpeta `mnt/`.
