@@ -20,7 +20,7 @@ extern struct fuse_operations bwfs_oper;
 
 // Función para cargar superbloque, bitmap e inodos desde imágenes *_meta.png
 int cargar_metadata(const char *carpeta) {
-    // 1. Leer el primer bloque meta para obtener la estructura del superbloque
+    // Leer el primer bloque meta para obtener la estructura del superbloque
     char path[PATH_MAX];
     snprintf(path, sizeof(path), "%s/%06d_meta.png", carpeta, 0);
 
