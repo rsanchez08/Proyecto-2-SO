@@ -4,13 +4,13 @@
 
 # Superbloque y bitmap
 
-(![photo_2025-06-30 21 16 21](https://github.com/user-attachments/assets/bd9544d8-6114-4be3-8e13-5e66a9308c69)
+![photo_2025-06-30 21 16 21](https://github.com/user-attachments/assets/bd9544d8-6114-4be3-8e13-5e66a9308c69)
 
 *Imagen generada por mkfs.bwfs que muestra el superbloque y el mapa de bits en blanco y negro.*
 
 # Estructura montada del FS
 
-(![photo_2025-06-30 21 16 18](https://github.com/user-attachments/assets/cd927853-5910-4876-8160-c30ef2de337a)
+![photo_2025-06-30 21 16 18](https://github.com/user-attachments/assets/cd927853-5910-4876-8160-c30ef2de337a)
 
 *Sistema montado con archivos visibles desde el directorio `mnt/`.*
 
